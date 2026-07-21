@@ -1012,7 +1012,11 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
                   }}
                 };
               }
-              result.push(librasBtn);
+              var gearIdx = -1;
+              for (var gi = 0; gi < result.length; gi++) {
+                if (result[gi] && result[gi].type === 'TRANSPORT_CONTROLS_BUTTON_TYPE_PLAYBACK_SETTINGS') { gearIdx = gi; break; }
+              }
+              if (gearIdx !== -1) { result.splice(gearIdx + 1, 0, librasBtn); } else { result.push(librasBtn); }
               return result;
             };
           })(targetProto[mName]);
