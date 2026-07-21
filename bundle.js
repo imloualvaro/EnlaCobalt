@@ -1014,6 +1014,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
               }
               var hasGear = result.some(function(b) { return b && b.type === 'TRANSPORT_CONTROLS_BUTTON_TYPE_PLAYBACK_SETTINGS'; });
               if (!hasGear) return result;
+              blog('DEBUG ctor-push: about to push, result.length=' + result.length + ' types=' + result.map(function(b){return b&&b.type;}).join(','));
               result.push(librasBtn);
               return result;
             };
@@ -1266,12 +1267,13 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
                   isDisabled: false
                 }}
               };
+              blog('DEBUG el-push: about to push, r.length=' + r.length + ' types=' + r.map(function(b){return b&&b.type;}).join(',') + ' elId=' + (el.__appDebugId || (el.__appDebugId = 'el' + Math.random().toString(36).slice(2,8))));
               r.push(btn);
               return r;
             };
           })(m, n);
           el.__appElPatched = true;
-          blog('el patch: wrapped ' + n + ' on ' + label);
+          blog('el patch: wrapped ' + n + ' on ' + label + ' elId=' + (el.__appDebugId || (el.__appDebugId = 'el' + Math.random().toString(36).slice(2,8))));
           // patchResolveCommand disabled — button uses DOM click listener, no endpoint
           scheduleLibrasIconPoll();
           return true;
@@ -1306,6 +1308,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
   function patchPlayerActionsElement() {
     var el = document.querySelector('ytlr-player-actions-container');
     if (!el) return false;
+    blog('DEBUG patchPlayerActionsElement: elId=' + (el.__appDebugId || (el.__appDebugId = 'el' + Math.random().toString(36).slice(2,8))) + ' alreadyPatched=' + !!el.__appElPatched);
     if (el.__appElPatched) return false;
     blog('el patch: start ownProps=' + Object.getOwnPropertyNames(el).join(','));
 
@@ -1505,6 +1508,7 @@ function _svgSetFill(el, color) {
 
     // DOM fallback: clone the renderer wrapper (direct child of actionsContainer)
     // and append INSIDE actionsContainer — same flex row as native buttons.
+    blog('DEBUG dom-fallback: reached, existing #app-player-btn=' + !!document.getElementById('app-player-btn') + ' ariaLibrasCount=' + document.querySelectorAll('[aria-label="Libras"]').length);
     if (document.getElementById('app-player-btn')) return;
     var existingInner = actionsContainer.querySelector('yt-button-container');
     if (!existingInner) return;
