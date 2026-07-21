@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.20-debug1",
-  "sha": "760fe4bcd587090afcb00e4edb20f062df7e895c",
+  "version": "2026.07.20-debug2",
+  "sha": "432f7457a4e7a608a0e43c5b810046eac0f3cc66",
   "note": "sha aponta o commit do bundle.js; loader baixa via jsDelivr @sha (imutavel). Fluxo de release: 1) commit bundle.js, 2) atualizar sha+version aqui, 3) push."
 }
