@@ -1272,6 +1272,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
             };
           })(m, n);
           el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
           blog('el patch: wrapped ' + n + ' on ' + label + ' elId=' + (el.__appDebugId || (el.__appDebugId = 'el' + Math.random().toString(36).slice(2,8))));
           // patchResolveCommand disabled — button uses DOM click listener, no endpoint
           scheduleLibrasIconPoll();
@@ -1317,6 +1318,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
       blog('el patch: idom instance found, type=' + typeof idom);
       if (_scanIdomInstance(idom, '__instance')) {
         el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
         // patchResolveCommand disabled — button uses DOM click listener, no endpoint
         return true;
       }
@@ -1328,6 +1330,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
           if (sub && typeof sub === 'object' && sub !== idom) {
             if (_scanIdomInstance(sub, '__instance.' + idomKeys[ik])) {
               el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
               // patchResolveCommand disabled — button uses DOM click listener, no endpoint
               return true;
             }
@@ -1346,6 +1349,7 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
       try {
         if (_tryWrapBtnSource(el, proto, Object.getOwnPropertyNames(proto), 'proto[' + depth + ']')) {
           el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
           // patchResolveCommand disabled — button uses DOM click listener, no endpoint
           return true;
         }
@@ -1377,11 +1381,13 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
         // Try with window._yttv as calling context
         if (_tryWrapBtnSource(window._yttv, window._yttv, yttvKeys, 'window._yttv')) {
           el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
           return true;
         }
         // Try with el as calling context (idom may use element as component host)
         if (_tryWrapBtnSource(el, window._yttv, yttvKeys, 'window._yttv.el')) {
           el.__appElPatched = true;
+          _cleanupDomFallbackBtn();
           return true;
         }
       }
@@ -1493,6 +1499,12 @@ function _svgSetFill(el, color) {
         if (lastNative) lastNative.focus();
       }
     }, true);
+  }
+
+  function _cleanupDomFallbackBtn() {
+    if (_playerBtnObserver) { try { _playerBtnObserver.disconnect(); } catch(e) {} _playerBtnObserver = null; }
+    var stale = document.getElementById('app-player-btn');
+    if (stale && stale.parentElement) { try { stale.parentElement.removeChild(stale); } catch(e) {} blog('el patch: removed stale DOM-fallback button after idom patch succeeded'); }
   }
 
   function tryInjectIntoPlayerBar() {
