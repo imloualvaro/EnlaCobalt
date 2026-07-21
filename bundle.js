@@ -1526,6 +1526,13 @@ function _svgSetFill(el, color) {
       renderer = renderer.parentElement;
     }
     if (!renderer) return;
+    // Bail if the native bar hasn't actually laid out yet — cloning an unstyled/zero-size
+    // renderer produces a button that visually floats outside the bar until a later retry
+    // replaces it. Let the existing retry schedule/MutationObserver try again once sized.
+    if (!renderer.offsetWidth || !renderer.offsetHeight) {
+      blog('player bar: renderer not laid out yet, skipping DOM fallback for now');
+      return;
+    }
     var btn = _buildRendererBtn(renderer);
     actionsContainer.appendChild(btn);
     blog('player bar: injected inside actions-container');
@@ -1537,7 +1544,7 @@ function _svgSetFill(el, color) {
         if (!inner) return;
         var r = inner;
         while (r && r.parentElement !== ac) { r = r.parentElement; }
-        if (r) {
+        if (r && r.offsetWidth && r.offsetHeight) {
           var b = _buildRendererBtn(r);
           ac.appendChild(b);
           blog('player bar: re-injected inside actions-container');
