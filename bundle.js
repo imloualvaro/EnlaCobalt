@@ -757,7 +757,6 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
     }, 3000);
   }
   var _controlsObserver = null;
-  var _playerBtnObserver = null;
   var _yttvPatchDone = false;
   var _yttvPatchInterval = null;
   var addonConfig = { crossfade_enabled: true, crossfade_duration: 0.15 };
@@ -1168,6 +1167,10 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
     })(btn);
   }
 
+  function _isLibrasBtnEvent(btn) {
+    return btn.getAttribute('aria-label') === 'Libras';
+  }
+
   function injectLibrasIcon() {
     var btn = _findLibrasBtn();
     if (!btn) return false;
@@ -1189,11 +1192,15 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
     // Primary action: DOM click listener (endpoint is empty, YouTube won't resolve it)
     if (!btn.__appClickAttached) {
       btn.__appClickAttached = true;
+      // idom may recycle this node for a native button (e.g. Configurações) — the listeners
+      // stay attached, so check at event time or the gear would open our panel instead.
       btn.addEventListener('click', function(e) {
+        if (!_isLibrasBtnEvent(btn)) return;
         e.stopPropagation();
         showSettingsPanel();
       }, true);
       btn.addEventListener('keydown', function(e) {
+        if (!_isLibrasBtnEvent(btn)) return;
         if (e.keyCode === 13 || e.keyCode === 32) {
           e.preventDefault();
           e.stopPropagation();
@@ -1274,7 +1281,6 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
             };
           })(m, n);
           el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
           blog('el patch: wrapped ' + n + ' on ' + label);
           // patchResolveCommand disabled — button uses DOM click listener, no endpoint
           scheduleLibrasIconPoll();
@@ -1319,7 +1325,6 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
       blog('el patch: idom instance found, type=' + typeof idom);
       if (_scanIdomInstance(idom, '__instance')) {
         el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
         // patchResolveCommand disabled — button uses DOM click listener, no endpoint
         return true;
       }
@@ -1331,7 +1336,6 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
           if (sub && typeof sub === 'object' && sub !== idom) {
             if (_scanIdomInstance(sub, '__instance.' + idomKeys[ik])) {
               el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
               // patchResolveCommand disabled — button uses DOM click listener, no endpoint
               return true;
             }
@@ -1350,7 +1354,6 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
       try {
         if (_tryWrapBtnSource(el, proto, Object.getOwnPropertyNames(proto), 'proto[' + depth + ']')) {
           el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
           // patchResolveCommand disabled — button uses DOM click listener, no endpoint
           return true;
         }
@@ -1382,13 +1385,11 @@ var e,t,i="function"==typeof Symbol?Symbol:{},n=i.iterator||"@@iterator",a=i.toS
         // Try with window._yttv as calling context
         if (_tryWrapBtnSource(window._yttv, window._yttv, yttvKeys, 'window._yttv')) {
           el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
           return true;
         }
         // Try with el as calling context (idom may use element as component host)
         if (_tryWrapBtnSource(el, window._yttv, yttvKeys, 'window._yttv.el')) {
           el.__appElPatched = true;
-          _cleanupDomFallbackBtn();
           return true;
         }
       }
@@ -1415,147 +1416,18 @@ function _svgSetFill(el, color) {
     if (g) g.style.fill = color;
   }
 
-  function _addHandlers(el) {
-    el.addEventListener('click',   function (e) { e.stopPropagation(); showSettingsPanel(); });
-    el.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); showSettingsPanel(); }
-    });
-    // D-pad focus (direct element)
-    el.addEventListener('focus',    function () { _svgSetFill(el, 'black'); });
-    el.addEventListener('blur',     function () { _svgSetFill(el, 'white'); });
-    // Mouse hover
-    el.addEventListener('mouseover', function () { _svgSetFill(el, 'black'); });
-    el.addEventListener('mouseout',  function () { _svgSetFill(el, 'white'); });
-  }
-
-  function _buildPlayerBtn(existingBtn) {
-    var clone = existingBtn.cloneNode(true);
-    clone.id = 'app-player-btn';
-    clone.setAttribute('aria-label', 'Tradutor Libras');
-    var ytIcon = clone.querySelector('yt-icon');
-    if (ytIcon) {
-      while (ytIcon.firstChild) ytIcon.removeChild(ytIcon.firstChild);
-      ytIcon.appendChild(makeSvgIcon(24, 24));
-    } else {
-      while (clone.firstChild) clone.removeChild(clone.firstChild);
-      clone.appendChild(makeSvgIcon(24, 24));
-    }
-    _addHandlers(clone);
-    return clone;
-  }
-
-  // Clone renderer wrapper (direct child of actionsContainer) for DOM fallback injection
-  function _buildRendererBtn(renderer) {
-    var clone = renderer.cloneNode(true);
-    clone.id = 'app-player-btn';
-    var innerBtn = clone.querySelector('[hybridnavfocusable="true"]') || clone.querySelector('yt-button-container');
-    if (innerBtn) {
-      innerBtn.setAttribute('aria-label', 'Tradutor Libras');
-      innerBtn.id = 'app-player-btn-inner';
-      var ytIcon = innerBtn.querySelector('yt-icon') || innerBtn.querySelector('yt-button-graphic');
-      var newSvg = makeSvgIcon(24, 24);
-      newSvg.setAttribute('data-app', '1');
-      newSvg.style.cssText = 'display:block;pointer-events:none;';
-      if (ytIcon) ytIcon.parentNode.replaceChild(newSvg, ytIcon);
-      else innerBtn.insertBefore(newSvg, innerBtn.firstChild);
-      _addHandlers(innerBtn);
-    } else {
-      clone.setAttribute('aria-label', 'Tradutor Libras');
-      var ytIcon2 = clone.querySelector('yt-icon');
-      if (ytIcon2) { while (ytIcon2.firstChild) ytIcon2.removeChild(ytIcon2.firstChild); ytIcon2.appendChild(makeSvgIcon(24, 24)); }
-      _addHandlers(clone);
-    }
-    return clone;
-  }
-
-  // ── Player bar key navigation ─────────────────────────────────────────────
-  // YTTV's hybridnav ignores our injected button. We intercept arrow keys:
-  //   RIGHT on last native button → focus #app-player-btn
-  //   LEFT  on #app-player-btn  → focus last native button
-  var _playerBarKeyNavInstalled = false;
-  function _installPlayerBarKeyNav() {
-    if (_playerBarKeyNavInstalled) return;
-    _playerBarKeyNavInstalled = true;
-    document.addEventListener('keydown', function(e) {
-      var kc = e.keyCode;
-      if (kc !== 37 && kc !== 39) return; // only LEFT / RIGHT
-      var ae = document.activeElement;
-      var appBtn = document.getElementById('app-player-btn');
-      if (!appBtn) return;
-      var ac = document.querySelector('ytlr-player-actions-container');
-      if (!ac) return;
-      // All hybridnav-focusable buttons except ours
-      var nativeBtns = Array.prototype.slice.call(
-        ac.querySelectorAll('[hybridnavfocusable="true"]')
-      ).filter(function(b) { return b.id !== 'app-player-btn'; });
-      var lastNative = nativeBtns[nativeBtns.length - 1];
-      // RIGHT on last native → jump to our button
-      if (kc === 39 && ae === lastNative) {
-        e.preventDefault(); e.stopPropagation();
-        appBtn.focus(); return;
-      }
-      // LEFT on our button → jump back to last native
-      if (kc === 37 && ae === appBtn) {
-        e.preventDefault(); e.stopPropagation();
-        if (lastNative) lastNative.focus();
-      }
-    }, true);
-  }
-
-  function _cleanupDomFallbackBtn() {
-    if (_playerBtnObserver) { try { _playerBtnObserver.disconnect(); } catch(e) {} _playerBtnObserver = null; }
-    var stale = document.getElementById('app-player-btn');
-    if (stale && stale.parentElement) { try { stale.parentElement.removeChild(stale); } catch(e) {} blog('el patch: removed stale DOM-fallback button after idom patch succeeded'); }
-  }
-
   function tryInjectIntoPlayerBar() {
-    var actionsContainer = document.querySelector('ytlr-player-actions-container');
-    if (!actionsContainer) return;
-
-    // Always attempt idom instance patch (idempotent via __appElPatched)
+    // Injection happens only via the idom data patch (idempotent via __appElPatched).
+    // No DOM-clone fallback: cloning native nodes into this idom-managed container
+    // duplicated focusables and broke D-pad navigation of the native controls.
+    // While the patch fails (native button array still empty), the init() timers and
+    // the MutationObserver keep retrying.
     patchPlayerActionsElement();
+  }
 
-    // Skip DOM fallback when idom patch succeeded — avoid duplicate/floating buttons
-    if (actionsContainer.__appElPatched) return;
-
-    // DOM fallback: clone the renderer wrapper (direct child of actionsContainer)
-    // and append INSIDE actionsContainer — same flex row as native buttons.
-    if (document.getElementById('app-player-btn')) return;
-    var existingInner = actionsContainer.querySelector('yt-button-container');
-    if (!existingInner) return;
-    // Walk up to the direct child of actionsContainer (renderer wrapper)
-    var renderer = existingInner;
-    while (renderer && renderer.parentElement !== actionsContainer) {
-      renderer = renderer.parentElement;
-    }
-    if (!renderer) return;
-    // Bail if the native bar hasn't actually laid out yet — cloning an unstyled/zero-size
-    // renderer produces a button that visually floats outside the bar until a later retry
-    // replaces it. Let the existing retry schedule/MutationObserver try again once sized.
-    if (!renderer.offsetWidth || !renderer.offsetHeight) {
-      blog('player bar: renderer not laid out yet, skipping DOM fallback for now');
-      return;
-    }
-    var btn = _buildRendererBtn(renderer);
-    actionsContainer.appendChild(btn);
-    blog('player bar: injected inside actions-container');
-    if (_playerBtnObserver) { try { _playerBtnObserver.disconnect(); } catch(e) {} }
-    _playerBtnObserver = new MutationObserver(function () {
-      if (!document.getElementById('app-player-btn')) {
-        var ac = document.querySelector('ytlr-player-actions-container');
-        var inner = ac && ac.querySelector('yt-button-container');
-        if (!inner) return;
-        var r = inner;
-        while (r && r.parentElement !== ac) { r = r.parentElement; }
-        if (r && r.offsetWidth && r.offsetHeight) {
-          var b = _buildRendererBtn(r);
-          ac.appendChild(b);
-          blog('player bar: re-injected inside actions-container');
-        }
-      }
-    });
-    _playerBtnObserver.observe(actionsContainer, { childList: true });
-    _installPlayerBarKeyNav();
+  function _playerBarPatched() {
+    var ac = document.querySelector('ytlr-player-actions-container');
+    return !!(ac && ac.__appElPatched);
   }
 
   // ── MutationObserver: watch for player bar and settings page ───────────────
@@ -1580,7 +1452,7 @@ function _svgSetFill(el, color) {
     var cls = (node.className || '') + ' ' + (node.id || '');
 
     // Check for player bar
-    if (!document.getElementById('app-player-btn')) {
+    if (!_playerBarPatched()) {
       if (/player.?actions|player.?bar|transport|right.?control|subtitles|caption/i.test(cls)
           || node.tagName === 'YTLR-PLAYER-ACTIONS-CONTAINER') {
         setTimeout(tryInjectIntoPlayerBar, 100);
@@ -1604,7 +1476,7 @@ function _svgSetFill(el, color) {
     // Check children
     if (node.querySelectorAll) {
       var bars = node.querySelectorAll(PLAYER_CTRL_SELECTORS.join(','));
-      if (bars.length && !document.getElementById('app-player-btn')) {
+      if (bars.length && !_playerBarPatched()) {
         setTimeout(tryInjectIntoPlayerBar, 100);
       }
     }
